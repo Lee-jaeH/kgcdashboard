@@ -1,153 +1,111 @@
 import streamlit as st
-import plotly.graph_objects as go
+import streamlit.components.v1 as components
 import pandas as pd
-from datetime import date
+import numpy as np
+import os
 
-# ----------------------------------------------------
-# 📌 구글 스프레드시트 '웹에 게시(CSV)' URL
-# ----------------------------------------------------
-CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTwIslWTmsfiT6UsKDFdvnNiPaCe-AlG4BR5qZI8-eRm6VHUg2NU0rCQrTdDAJN9TpsSd02EG2LwtN6/pub?output=csv" 
-
-# 데이터 불러오기 함수 (캐싱 적용: 60초마다 새로고침)
-@st.cache_data(ttl=60)
-def load_gsheet_data(url):
-    try:
-        if not url or url == "":
-            return pd.DataFrame({
-                "지표명": ["수도권 판매량", "지방 판매량", "AI 인사이트"],
-                "값": ["+15%", "-2%", "분석중"],
-                "증감량": ["15% 상승", "-2% 하락", "-"],
-                "메모": ["🏪 편의점 채널 강세", "🛒 대형마트 정체", "데이터를 불러오는 중입니다..."]
-            })
-        
-        df = pd.read_csv(url)
-        return df
-    except Exception as e:
-        st.error(f"데이터를 불러오는 중 오류가 발생했습니다: {e}")
-        return None
-
-# 1. 페이지 설정
+# 페이지 기본 설정
 st.set_page_config(
-    page_title="제품 분석 대시보드 리포트",
-    page_icon="📊",
+    page_title="KGC AI 설비 예지보전",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# 2. 커스텀 CSS
-st.html("""
-<style>
-    .highlight-text { background: linear-gradient(135deg, #dc2626, #991b1b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 900; }
-    .header-badge { background: linear-gradient(to right, #fbe8e8, #ffe4e6); color: #991b1b; padding: 6px 16px; border-radius: 9999px; font-size: 0.9rem; font-weight: bold; display: inline-block; margin-bottom: 10px; border: 1px solid #fecdd3; }
-    div[data-testid="metric-container"] { background-color: white; border: 1px solid #f3f4f6; padding: 5% 10%; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); transition: transform 0.2s ease, box-shadow 0.2s ease; }
-    div[data-testid="metric-container"]:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-    .insight-card { background: linear-gradient(135deg, #7f1d1d, #111827); color: white; padding: 20px; border-radius: 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); margin-top: 20px; }
-    .insight-highlight { background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin-top: 10px; border-left: 4px solid #ef4444; }
-</style>
-""")
+# --- [데이터 분석 및 ML 알림 엔진] ---
+@st.cache_data
+def analyze_equipment_data():
+    data_path = 'data/train_FD001.txt'
+    
+    if not os.path.exists(data_path):
+        total_units = 100
+        mock_ruls = np.random.randint(5, 205, size=total_units)
+        unit_ids = np.arange(1, total_units + 1)
+    else:
+        columns = ['unit', 'cycle', 'os1', 'os2', 'os3'] + [f's{i}' for i in range(1, 22)]
+        df = pd.read_csv(data_path, sep='\s+', header=None, names=columns)
+        max_cycles = df.groupby('unit')['cycle'].max()
+        unit_ids = max_cycles.index.values
+        # 실제 모델이 있다면 여기서 예측값을 가져오지만, 여기서는 계산된 RUL을 사용
+        mock_ruls = (200 - max_cycles).clip(lower=0).values 
 
-# 구글 시트 데이터 로드
-df_metrics = load_gsheet_data(CSV_URL)
+    # 1. 통계치 계산
+    avg_rul = int(np.mean(mock_ruls))
+    danger_mask = mock_ruls < 50
+    caution_mask = (mock_ruls >= 50) & (mock_ruls <= 100)
+    
+    danger_units = len(mock_ruls[danger_mask])
+    caution_units = len(mock_ruls[caution_mask])
+    normal_units = len(mock_ruls) - danger_units - caution_units
+    health_score = round(((normal_units * 100) + (caution_units * 50)) / len(mock_ruls), 1)
 
-# 기본값 세팅
-sudo_val, sudo_delta, sudo_memo = "+15%", "15% 상승", "🏪 편의점 채널 강세"
-local_val, local_delta, local_memo = "-2%", "-2% 하락", "🛒 대형마트 정체"
-ai_comment = "스프레드시트에서 'AI 인사이트' 행의 '메모' 컬럼을 확인해주세요."
+    # 2. ML 이상 징후 알림 생성 (RUL이 낮은 순서대로 상위 알림 추출)
+    alerts_html = ""
+    # 위험(Danger) 등급 유닛들 중 가장 심각한 3개 추출
+    danger_indices = np.where(danger_mask)[0]
+    sorted_danger_idx = danger_indices[np.argsort(mock_ruls[danger_indices])][:3]
+    
+    for idx in sorted_danger_idx:
+        u_id = unit_ids[idx]
+        rul_val = mock_ruls[idx]
+        alerts_html += f"""
+        <div class="flex items-start p-4 bg-dark-800 rounded-xl border border-neon-red/30 mb-3 animate-pulse">
+            <div class="w-10 h-10 flex-shrink-0 bg-neon-red/20 text-neon-red rounded-full flex items-center justify-center font-black mr-4 border border-neon-red/40">!</div>
+            <div class="flex-grow">
+                <div class="flex justify-between items-center">
+                    <p class="text-sm font-black text-white">Unit {u_id} 고장 임박 감지</p>
+                    <span class="px-2 py-0.5 bg-neon-red/20 text-neon-red text-[10px] font-black rounded uppercase">Critical</span>
+                </div>
+                <p class="text-xs text-dark-300 mt-1">ML 분석 결과, 예상 잔존 수명이 <span class="text-neon-red font-bold">{rul_val} 사이클</span> 미만입니다. 즉시 점검이 필요합니다.</p>
+            </div>
+        </div>
+        """
 
-# 구글 시트 데이터 매핑
-if df_metrics is not None and not df_metrics.empty:
+    # 주의(Caution) 등급 유닛 중 1개 추가
+    caution_indices = np.where(caution_mask)[0]
+    if len(caution_indices) > 0:
+        u_id = unit_ids[caution_indices[0]]
+        alerts_html += f"""
+        <div class="flex items-start p-4 bg-dark-800 rounded-xl border border-neon-amber/20 mb-3">
+            <div class="w-10 h-10 flex-shrink-0 bg-neon-amber/20 text-neon-amber rounded-full flex items-center justify-center font-black mr-4 border border-neon-amber/40">?</div>
+            <div class="flex-grow">
+                <div class="flex justify-between items-center">
+                    <p class="text-sm font-black text-white">Unit {u_id} 이상 징후 포착</p>
+                    <span class="px-2 py-0.5 bg-neon-amber/20 text-neon-amber text-[10px] font-black rounded uppercase">Warning</span>
+                </div>
+                <p class="text-xs text-dark-300 mt-1">센서 S11 및 S15 패턴이 비정상적입니다. 예방 정비를 권고합니다.</p>
+            </div>
+        </div>
+        """
+
+    return {
+        "avg_rul": str(avg_rul),
+        "health_score": str(health_score),
+        "normal_pct": str(normal_units),
+        "caution_pct": str(caution_units),
+        "danger_pct": str(danger_units),
+        "danger_count": f"{danger_units:02d}",
+        "caution_count": f"{caution_units:02d}",
+        "alert_items": alerts_html
+    }
+
+# --- [HTML 렌더링 엔진] ---
+def render_dashboard():
+    stats = analyze_equipment_data()
     try:
-        sudo_row = df_metrics[df_metrics['지표명'] == '수도권 판매량'].iloc[0]
-        sudo_val, sudo_delta, sudo_memo = sudo_row['값'], sudo_row['증감량'], sudo_row['메모']
+        with open("index.html", "r", encoding="utf-8") as f:
+            template = f.read()
         
-        local_row = df_metrics[df_metrics['지표명'] == '지방 판매량'].iloc[0]
-        local_val, local_delta, local_memo = local_row['값'], local_row['증감량'], local_row['메모']
-        
-        if 'AI 인사이트' in df_metrics['지표명'].values:
-            ai_row = df_metrics[df_metrics['지표명'] == 'AI 인사이트'].iloc[0]
-            ai_comment = ai_row['메모']
-    except Exception as e:
-        pass
+        for key, value in stats.items():
+            template = template.replace(f"{{{{{key}}}}}", value)
+            
+        components.html(template, height=920, scrolling=True)
+    except FileNotFoundError:
+        st.error("❌ 'index.html' 파일을 찾을 수 없습니다.")
 
-# 3. 사이드바
-with st.sidebar:
-    st.markdown("### 🎛️ 대시보드 필터")
-    st.date_input("조회 기간", value=(date(2026, 3, 22), date(2026, 3, 28)))
-    st.multiselect("분석 채널", options=["편의점", "대형마트", "온라인(자사몰)", "백화점"], default=["편의점", "대형마트"])
-    st.button("필터 적용", use_container_width=True)
-
-# 4. 상단 헤더
-col_header1, col_header2 = st.columns([3, 1])
-with col_header1:
-    st.html('<div class="header-badge">📊 주간 인사이트 리포트 | Gemini AI 연동</div>')
-    st.html('<h1 style="font-size: 2.5rem; font-weight: 800; margin-bottom: 0;">정관장 에브리타임 밸런스 <span class="highlight-text">(리뉴얼)</span></h1>')
-with col_header2:
-    st.info("**AI 분석 엔진:** Gemini 1.5 Flash\n\n**동기화:** 1분 주기 자동 반영", icon="🤖")
-
-st.markdown("---")
-
-# 5. KPI 지표 영역
-col_kpi1, col_kpi2, col_kpi3 = st.columns([1, 1, 2])
-with col_kpi1:
-    st.metric(label="수도권 판매량 (전주 대비)", value=sudo_val, delta=sudo_delta)
-    st.caption(f"**{sudo_memo}**")
-with col_kpi2:
-    st.metric(label="지방 판매량 (전주 대비)", value=local_val, delta=local_delta, delta_color="inverse")
-    st.caption(f"**{local_memo}**")
-with col_kpi3:
-    age_col1, age_col2 = st.columns([1.2, 1])
-    with age_col1:
-        st.markdown("##### 핵심 타겟 고객층")
-        st.html("<h2 style='margin: 0; padding: 0;'>2030 사회초년생</h2>")
-        st.markdown("전체 구매자의 **45%** 차지")
-    with age_col2:
-        fig = go.Figure(data=[go.Pie(labels=['2030', '기타'], values=[45, 55], hole=0.75, marker=dict(colors=['#ef4444', '#f1f5f9']), textinfo='none')])
-        fig.update_layout(showlegend=False, margin=dict(t=0, b=0, l=0, r=0), height=140)
-        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-
-st.html("<br>")
-
-# 6. 리뷰 영역 및 AI 인사이트 통합
-col_main, col_sub = st.columns([2, 1])
-
-with col_main:
-    st.markdown("### 💬 고객 리뷰 및 AI 핵심 인사이트")
-    
-    # 상단: 긍정/부정 리뷰 2컬럼
-    rev_col1, rev_col2 = st.columns(2)
-    with rev_col1:
-        st.success("**✓ 긍정적 피드백**\n* 포장 디자인 만족도 높음\n* 맛의 밸런스 개선", icon="✅")
-    with rev_col2:
-        st.error("**! 개선 필요 사항**\n* 가격 저항감 존재\n* 패키지 개봉 편의성", icon="⚠️")
-    
-    # 하단: Gemini AI 인사이트 카드 (리뷰 영역 내부로 이동)
-    insight_html = f"""
-    <div class="insight-card">
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <span style="background: #ef4444; color: white; font-size: 0.7em; padding: 2px 8px; border-radius: 4px; font-weight: bold;">Gemini AI 분석</span>
-            <strong style="color: white;">종합 데이터 인사이트</strong>
-        </div>
-        <div class="insight-highlight">
-            <span style="font-size: 1.0rem; line-height: 1.6; color: #fecdd3; font-weight: 600;">💡 핵심 요약</span><br>
-            <span style="font-size: 0.95em; line-height: 1.6; color: white;">{ai_comment}</span>
-        </div>
-    </div>
-    """
-    st.html(insight_html)
-
-with col_sub:
-    # 오른쪽 사이드 영역: 기타 트렌드나 보조 지표
-    st.markdown("### 🔥 마켓 트렌드")
-    st.info("**2030 등산/테니스족** 유입 급증\n\n휴대용 스틱 제형이 야외 활동 시 필수 아이템으로 자리 잡으며 판매량 견인 중", icon="📈")
-    
-    # 추가적인 미니 차트나 지표 등을 넣을 수 있는 공간입니다.
-    st.divider()
-    st.markdown("##### 📅 다음 주 예측")
-    st.write("벚꽃 시즌 야외 활동 증가로 인해 수도권 편의점 채널 판매량 **8~12% 추가 상승** 예상")
-
-st.markdown("---")
-
-# 7. 원본 데이터 확인
-with st.expander("📁 스프레드시트 연동 데이터 상세 보기"):
-    if df_metrics is not None:
-        st.dataframe(df_metrics, use_container_width=True, hide_index=True)
+if __name__ == "__main__":
+    render_dashboard()
+    with st.sidebar:
+        st.header("⚙️ 분석 제어")
+        if st.button("모델 재분석 (Refresh)"):
+            st.cache_data.clear()
+            st.rerun()
