@@ -1,133 +1,450 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KGC 설비 예지보전 LIVE MONITORING</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Pretendard', 'sans-serif'] },
-                    colors: {
-                        dark: { 950: '#020617', 900: '#0f172a', 800: '#1e293b', 700: '#334155' },
-                        neon: { blue: '#0ea5e9', green: '#10b981', amber: '#f59e0b', red: '#ef4444' }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>밴쿠버 & 로키 10박 11일 인터랙티브 일정표</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<style>
+body { font-family: 'Noto Sans KR', sans-serif; background-color: #fafaf9; color: #292524; }
+.chart-container { position: relative; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto; height: 300px; max-height: 400px; }
+@media (min-width: 768px) { .chart-container { height: 350px; } }
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+</style>
+</head>
+<body class="antialiased selection:bg-emerald-200 selection:text-emerald-900">
+
+<!-- Chosen Palette: Warm Neutrals & Evergreen Accent (Stone-50 background, Stone-800 text, Emerald-600 accents) -->
+
+<!-- Application Structure Plan: The application is structured as an interactive master dashboard designed to solve cognitive friction in route mapping. The previous version separated locations (timeline) and context (food/photos) into disjointed columns. In this newly redesigned architecture, we merge these dimensions. Each chronological step of the journey is rendered as an 'Enriched Activity Card' that houses its specific coordinate information (Time, Route details, nested Photo spots, and nested local Cuisines) within the same visual boundary. The right-hand column has been converted from a redundant item dump into a dynamic 'Contextual Advisory Panel' providing strategic daily advice (transit caps, operational deadlines, preparation checklists) relative to that day's specific activities. This completely aligns temporal logistics with spatial inspiration. -->
+
+<!-- Visualization & Content Choices: Report Info: Daily Activity Density -> Goal: Provide high-level pacing insights -> Viz/Presentation Method: Clean Responsive Bar Chart -> Interaction: Hover to see activity numbers -> Justification: Mentally prepares the traveler for energy allocation -> Library/Method: Chart.js (Canvas). Report Info: Enriched Chronological Location Itinerary -> Goal: Link precise location stop with corresponding highlights -> Viz/Presentation Method: Interactive Segmented Timeline Cards -> Interaction: Click day tab to update, visual hover effects on cards -> Justification: Integrates and nests food/shopping details inside the corresponding time-block cards to prevent cross-referencing confusion -> Library/Method: Vanilla HTML5 / Tailwind CSS engine. CONFIRMATION: NO SVG used. NO Mermaid used. -->
+
+<!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+<header class="bg-stone-900 text-stone-50 py-12 px-6 shadow-md relative overflow-hidden">
+<div class="max-w-6xl mx-auto relative z-10">
+<p class="text-emerald-400 font-bold tracking-widest text-sm mb-2 uppercase">Interactive Travel Dashboard</p>
+<h1 class="text-4xl md:text-5xl font-black mb-4 tracking-tight">🍁 밴쿠버 & 로키 10박 11일</h1>
+<p class="text-stone-300 text-lg max-w-2xl leading-relaxed">대자연의 경이로움부터 로컬 야시장의 활기까지. 오크리지, 로키산맥, 리치먼드를 잇는 완벽한 여행 동선을 한눈에 탐색하세요.</p>
+</div>
+<div class="absolute -bottom-24 -right-10 text-[15rem] opacity-5 select-none pointer-events-none">🌲</div>
+</header>
+
+<main class="max-w-6xl mx-auto px-4 sm:px-6 py-8 md:py-12 space-y-16">
+
+<!-- Overview Dashboard section introducing trip metrics -->
+<section class="bg-white rounded-3xl p-6 md:p-10 shadow-sm border border-stone-200">
+<div class="mb-8">
+<h2 class="text-2xl font-bold text-stone-800 mb-2">📊 여행 페이스 분석 (Overview)</h2>
+<p class="text-stone-500 text-sm md:text-base leading-relaxed">
+이 섹션은 11일간의 여정 중 일별 활동 밀도를 시각적으로 보여줍니다. 차트를 통해 스케줄이 집중된 날과 휴식이 배정된 날을 한눈에 파악하여 여행 컨디션을 전략적으로 조절할 수 있습니다. 각 막대에 마우스를 올리면 해당 일자의 세부 지표를 확인할 수 있습니다.
+</p>
+</div>
+<div class="chart-container">
+<canvas id="pacingChart"></canvas>
+</div>
+</section>
+
+<!-- Central exploration workspace housing the redesigned consolidated cards -->
+<section id="daily-explorer" class="scroll-mt-8">
+<div class="mb-6">
+<h2 class="text-2xl font-bold text-stone-800 mb-2">🗓️ 일별 통합 탐색기 (Daily Explorer)</h2>
+<p class="text-stone-500 text-sm md:text-base leading-relaxed">
+원하는 날짜를 클릭하면 해당 위치의 타임라인 동선과 그 장소에서 즐겨야 할 전용 포토존, 쇼핑 스팟, 특화 맛집 정보가 하나의 코스별 카드로 통합되어 바로 매칭됩니다.
+</p>
+</div>
+
+<!-- Horizontal day selector slider -->
+<div class="relative w-full bg-white rounded-2xl shadow-sm border border-stone-200 p-2 mb-8">
+<div class="flex overflow-x-auto hide-scrollbar gap-2 snap-x snap-mandatory" id="daySelector"></div>
+</div>
+
+<!-- Main content container divided into Timeline Cards (Left) and Advisory Board (Right) -->
+<div class="bg-white rounded-3xl shadow-sm border border-stone-200 overflow-hidden">
+<div class="bg-emerald-50 border-b border-emerald-100 p-6 md:p-8">
+<div class="inline-flex items-center gap-2 px-3 py-1 bg-emerald-200 text-emerald-800 text-xs font-bold rounded-full mb-3" id="currentHub"></div>
+<h3 class="text-2xl md:text-3xl font-black text-stone-900" id="currentTitle"></h3>
+</div>
+
+<div class="p-6 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-10">
+<!-- Left block: Chronological itinerary with embedded highlights inside each card -->
+<div class="lg:col-span-8 space-y-6">
+<h4 class="text-lg font-bold text-stone-800 border-b border-stone-100 pb-3 mb-6 flex items-center gap-2">
+<span>🗺️</span> 코스별 원스톱 상세 일정 (동선 일치 완료)
+</h4>
+<div class="relative border-l-2 border-emerald-500/30 ml-3 pl-8 space-y-8" id="timelineContainer"></div>
+</div>
+
+<!-- Right block: Strategic advisory and preparations -->
+<div class="lg:col-span-4 space-y-6">
+<div class="bg-stone-50 rounded-2xl p-6 border border-stone-200 sticky top-6">
+<h4 class="text-md font-bold text-stone-800 mb-4 flex items-center gap-2">
+<span>💡</span> 오늘 꼭 알아야 할 핵심 가이드
+</h4>
+<div id="daySummary" class="text-sm text-stone-600 space-y-4 leading-relaxed">
+<!-- Dynamically populated per-day quick tips -->
+</div>
+
+<div class="mt-8 pt-6 border-t border-stone-200">
+<h4 class="text-xs font-bold text-stone-400 tracking-wider uppercase mb-3">🛠️ 공통 여행 준비 필수사항</h4>
+<ul class="text-xs text-stone-500 space-y-2 list-disc list-inside">
+<li><strong>빅토리아 터치 결제:</strong> 신용카드 태그 시 하루 최대 5달러 자동 캡핑 적용</li>
+<li><strong>휘슬러 복장:</strong> 고지대 산악 날씨 대비 다용도 레이어드 및 얇은 겉옷 필수</li>
+<li><strong>체력 정비:</strong> 하이킹 일정 이후 충분한 수분 섭취와 발 휴식 보장</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+</main>
+
+<footer class="bg-stone-900 text-stone-400 py-8 text-center text-sm">
+<div class="max-w-6xl mx-auto px-6">
+<p>Vancouver & Rockies Interactive Itinerary Dashboard. Designed for optimal travel experience.</p>
+</div>
+</footer>
+
+<script>
+// Consolidated master travel data
+const itineraryData = [
+{
+id: 1,
+dateShort: "5/28",
+dateFull: "5월 28일 (목요일)",
+title: "공항 도착, 개스타운 쇼핑 우선 & 다운타운 야경",
+hub: "📍 오크리지 숙소",
+activityCount: 5,
+schedule: [
+{ time: "14:50", act: "밴쿠버 공항(YVR) 도착", desc: "입국 심사 및 짐 찾기, 공항 스카이트레인(Canada Line) 탑승구에서 컴파스 카드(Compass Card) 구매 및 충전", photo: "", food: "☕ 스타벅스 YVR 공항점 - 가볍게 목 축이기 좋은 스팟" },
+{ time: "15:40 ~ 16:30", act: "숙소 이동 및 체크인", desc: "공항역 ➔ Oakridge-41st Ave 역 하차 (약 15분). 숙소 도보 5~10분 이동 후 짐 정리 및 가벼운 휴식.", photo: "", food: "🛒 세이프웨이 오크리지점 - 숙소 근처 대형 마트로 현지 과일이나 생수 사기 좋음" },
+{ time: "17:30 ~ 18:00", act: "다운타운 이동", desc: "Oakridge-41st Ave 역 ➔ Waterfront 역 하차 (종점, 약 15분)", photo: "📍 워터프론트 역 내관: 1914년에 지어진 에드워드 양식의 역사적인 기차역 기둥과 천장 벽화 앞 인증샷", food: "☕ 팀홀튼 워터프론트역점 - 캐나다 국민 커피 '아이스캡'과 단호박 도넛으로 가벼운 당 충전" },
+{ time: "18:00 ~ 19:00", act: "개스타운 쇼핑 & 역사 지구", desc: "허셜 매장 마감 시간(19:00) 전에 가방 쇼핑을 먼저 완료합니다.", photo: "📍 개스타운 증기시계 (Steam Clock): 15분마다 하얀 증기와 멜로디 방출\n🛍️ 허셜 서플라이 플래그십: 본점 매장 가방 득템 스팟!", food: "☕ 리볼버 커피 (Revolver) - 핸드드립 커피와 힙한 분위기의 스페셜티 카페" },
+{ time: "19:00 ~ 20:30", act: "캐나다 플레이스 & 올림픽 플라자 산책", desc: "캐나다 플레이스의 상징적인 흰 돛 뷰 감상 및 콜 하버 산책로에서 수상비행기 감상.", photo: "📍 잭 풀 광장 (Jack Poole Plaza): 2010 동계올림픽 실제 성화대 앞\n📍 디지털 오르카 (Digital Orca): 픽셀 모양의 범고래 조각상\n🛍️ 룰루레몬 랍슨 플래그십: 캐나다 최대 규모 매장\n🛍️ 아리찌아 플래그십: 여성 로컬 브랜드 의류 쇼핑", food: "☕ 벨라지오 카페 캐나다플레이스점 - 바다 풍경 테라스 에스프레소" },
+{ time: "20:30 ~ 22:00", act: "저녁 식사 및 야경 감상", desc: "붉게 물드는 석양과 노스 밴쿠버의 야경 감상", photo: "", food: "🍽️ Cactus Club Cafe (Coal Harbour) - 바다 전망 모던 캐나디안 펍 레스토랑\n🍽️ Miku (미쿠) - 겉면을 그을린 살몬 오시 스시 일식당\n🍽️ Nightingale - 힙한 이탈리안 화덕피자와 시원한 에일 맥주" },
+{ time: "22:00 ~", act: "숙소 복귀", desc: "Waterfront 역 ➔ Oakridge-41st Ave 역으로 안전하게 복귀", photo: "", food: "" }
+]
+},
+{
+id: 2,
+dateShort: "5/29",
+dateFull: "5월 29일 (금요일)",
+title: "대자연 라이딩, 마켓 투어 & 배구의 성지",
+hub: "📍 오크리지 숙소",
+activityCount: 6,
+schedule: [
+{ time: "09:00 ~ 12:00", act: "스탠리 공원 (Stanley Park)", desc: "공원 초입 자전거 대여샵(Spokes Bicycle Rentals 등)에서 자전거 렌탈 후 Seawall 해안로 라이딩 진행 (약 1.5~2시간 소요)", photo: "📍 원주민 토템폴 광장 (Totem Poles): 신비로운 목조 조각상 모임\n📍 라이온스 게이트 브릿지 전망대: 노스밴쿠버와 다리가 한눈에 담기는 가장 웅장한 포토존", food: "☕ 프로스펙트 포인트 카페 - 라이딩 중간 지점 산 정상에서 즐기는 시원한 에이드와 메이플 아이스크림" },
+{ time: "12:00 ~ 13:30", act: "잉글리시 베이 (English Bay)", desc: "자전거 반납 후 해안 도로를 따라 남쪽으로 도보 이동. 해변 근처에서 맛보는 든든한 점심 식사", photo: "📍 A-maze-ing Laughter: 익살스럽게 웃고 있는 청동 조각상들\n📍 이누크슈크 (Inukshuk): 바다와 어우러진 올림픽 공식 엠블럼 모티프 돌 조각상", food: "🍽️ Hook Seabar - 오션뷰 테라스 해산물 플래터와 타코\n🍽️ Cactus Club Cafe (English Bay) - 해변 감상 통유리 레스토랑\n🍽️ Papi's Seafood and Oyster Bar - 신선한 굴 플레이트와 대구 피시 앤 칩스" },
+{ time: "13:30 ~ 16:30", act: "그랜빌 아일랜드 (Granville Island)", desc: "잉글리시 베이 선착장 ➔ 아쿠아버스(Aquabus) 탑승하여 퍼블릭 마켓 및 다양한 예술인 숍 구경", photo: "📍 자이언트 실로 (Giants Silos): 거대한 캐릭터 스트리트 아트\n🛍️ 그랜빌 브룸 컴퍼니 (Broom Co.): 해리포터 빗자루 감성 수제 공방", food: "😋 Lee's Donuts - 명물 쫄깃한 '허니 딥' 도넛\n😋 연어 캔디 (Salmon Candy) - 메이플 시럽 바른 훈제 연어 육포\n😋 Oyama Sausage Co. - 직접 염장 건조한 하몬, 치즈" },
+{ time: "16:30 ~ 19:30", act: "킷실라노 비치 (Kitsilano Beach) & 쇼핑 투어", desc: "그랜빌 아일랜드에서 서쪽 해안로를 따라 자전거/버스/도보 이동하며 룰루레몬 탄생 1호점과 킷실라노 비치 탐방", photo: "📍 킷실라노 비치발리볼 코트: 야외 비치발리볼 메카\n🛍️ 룰루레몬 1호 본점 (Lululemon West 4th Ave): 세계 최초의 룰루레몬 역사적 1호점 매장", food: "🍽️ Jam Cafe (Kitsilano점) - 밴쿠버 1등 브런치 명가 (★15:00에 조기 마감하므로 그랜빌 아일랜드 전후 타이밍에 맞춘 늦은 점심으로 적극 추천!)\n🍽️ The Boathouse Restaurant - 선셋 감상 랍스터 & 스테이크 레스토랑\n🍽️ Local Public Eatery (Kitsilano) - 수제 버거와 탭 생맥주 힙한 펍" }
+]
+},
+{
+id: 3,
+dateShort: "5/30~6/2",
+dateFull: "5월 30일 ~ 6월 2일",
+title: "대자연의 로키 3박 4일 패키지 투어",
+hub: "🚌 로키산맥 투어",
+activityCount: 4,
+schedule: [
+{ time: "5/30 (토)", act: "로키 관문 진입 (1일차)", desc: "코퀴할라 하이웨이를 달려 캠룹스를 거쳐 골든(Golden) 또는 레벨스톡으로 진입", photo: "📍 라스트 스파이크: 대륙 횡단 철도 완성점 역사 유적지", food: "🍽️ 골든 로컬 수제 버거 및 휴게소 간식 보급" },
+{ time: "5/31 (일)", act: "요호 및 밴프 국립공원 (2일차)", desc: "설퍼산 곤돌라를 탑승하여 로키 360도 전경 감상 및 에메랄드 호수 탐방", photo: "📍 에메랄드 레이크, 레이크 루이스: 웅장한 빙하 배경 호수 포토존", food: "🍽️ 밴프 타운 내 알버타 소고기 스테이크" },
+{ time: "6/1 (월)", act: "콜롬비아 빙원 & 밴프 (3일차)", desc: "설상차 탑승 후 실제 빙하 밟기 체험 및 모레인 레이크 구경", photo: "📍 아사바스카 빙하, 모레인 레이크: 터키블루 호수 최고의 포토존", food: "🍽️ 밴프 로컬 수제 맥주 양조장 및 바비큐 플레이트" },
+{ time: "6/2 (화)", act: "보우 폭포 ➔ 밴쿠버 귀환 (4일차)", desc: "마릴린 먼로 영화 촬영지인 보우 폭포 투어 후 밴쿠버 다운타운으로 복귀 진행", photo: "📍 보우 폭포 산책로", food: "🍽️ 복귀 중 로컬 휴게소 보급식" },
+{ time: "19:00 ~ 20:30", act: "새로운 숙소 이동 및 체크인", desc: "밴프 투어 버스 다운타운 하차 후 대중교통 또는 우버로 리치먼드 숙소 복귀 및 휴식", photo: "🏡 리치먼드 타운하우스 숙소 (4371 Fisher Drive)", food: "🍽️ HK BBQ Master - 수퍼스토어 주차장에 숨겨진 밴쿠버 최강 홍콩식 오리&삼겹 바비큐 테이크아웃\n🍽️ G-Men Ramen - 리치먼드 최고의 돈코츠 라멘 전문점\n🍽️ Isetatsu - 숙소 인근 정갈하고 신선한 정통 일식 스시 롤" }
+]
+},
+{
+id: 4,
+dateShort: "6/3",
+dateFull: "6월 3일 (수요일)",
+title: "캐나다 속 작은 영국, 빅토리아 당일치기",
+hub: "📍 리치먼드 숙소",
+activityCount: 6,
+schedule: [
+{ time: "07:30 ~ 08:30", act: "리치먼드 숙소 ➔ 츠와슨 터미널 이동", desc: "Bridgeport 역 ➔ 620번 익스프레스 버스(Tsawwassen Ferry 행) 탑승하여 터미널 하차", photo: "", food: "☕ Bridgeport 역 내 팀홀튼 브랙퍼스트 랩과 따뜻한 아메리카노" },
+{ time: "08:30 ~ 10:40", act: "BC Ferry 탑승 및 해상 이동", desc: "도보 승객(Walk-on) 티켓 발권 후 09:00 출발 빅토리아(Swartz Bay)행 페리 탑승 (1시간 35분 운항)", photo: "📍 페리 야외 갑판: 태평양 바다와 아름다운 해상 군도(Gulf Islands) 풍경 촬영", food: "🥪 선상 Coastal Cafe - 클래식 블랙커피와 햄앤치즈 토스트 샌드위치" },
+{ time: "10:40 ~ 11:40", act: "스왈츠 베이 ➔ 이너 하버 이동", desc: "하선 후 터미널 바로 앞 버스 정류장에서 70번 Express 버스 탑승 ➔ 빅토리아 다운타운(이너 하버) 하차", photo: "", food: "" },
+{ time: "11:40 ~ 14:00", act: "이너 하버 (Inner Harbour) 산책 & 런치", desc: "요트가 정박해 있는 평화로운 항구 도보 산책 및 주변 역사 랜드마크 투어", photo: "📍 BC주 의사당 (Parliament Buildings): 네오 바로크 왕궁 건물 앞 잔디밭\n📍 페어몬트 엠프레스 호텔: 고풍스러운 담쟁이덩굴 성곽 외관", food: "🍽️ Blue Fox Cafe (블루폭스) - 빅토리아 부동의 1위 명소 브런치 (에그 베네딕트, 프렌치토스트 필수)\n🍽️ Red Fish Blue Fish - 부둣가 컨테이너 야외 광어/연어 피시 앤 칩스 테이크아웃\n🍽️ The Bard & Banker - 1885년 올드 뱅크 건물 영국식 에일 펍" },
+{ time: "13:00 ~ 14:30", act: "피셔맨스 워프 (Fisherman's Wharf)", desc: "이너 하버 선착장에서 해안 산책로를 따라 서쪽으로 도보 15분 이동하여 형형색색 수상 가옥들 산책", photo: "📍 수상 가옥 산책로: 원색으로 칠해진 배 모양의 집들 배경\n📍 야생 바다표범 구경: 선착장 아래로 종종 고개를 내미는 귀여운 물개들 포착", food: "😋 The Fish Store - 신선한 굴 한 접시 또는 따끈한 클램 차우더\n😋 Jackson's Ice Cream - 물 위 간이 트럭 소프트콘" },
+{ time: "14:30 ~ 16:30", act: "왕립 BC 박물관 (Royal BC Museum)", desc: "다시 이너하버 중심으로 복귀하여 캐나다 최고 전시 퀄리티 대형 박물관 관람", photo: "📍 원주민 토템폴 관: 거대하고 영험한 원주민 실제 토템폴 실물\n📍 올드 타운 (Old Town): 19세기 빅토리아의 옛 거리와 기차역 정교한 복원 공간", food: "" },
+{ time: "16:30 ~ 18:00", act: "가번먼트 스트리트 쇼핑", desc: "붉은 벽돌과 고풍스러운 간판이 매력적인 역사 거리를 걸으며 기념품 쇼핑 및 티타임 진행", photo: "🛍️ 로저스 초콜릿 본점 (Rogers' Chocolates): 1885년 캐나다 최초 초콜릿 매장\n🛍️ 먼로 북스 (Munro's Books): 옛 대리석 은행 건물을 개조해 만든 세계에서 가장 아름다운 서점", food: "😋 머치스 티 & 커피 (Murchie's Tea & Coffee) - 130년 전통 프리미엄 얼그레이 홍차와 따뜻하게 갓 구운 수제 딸기잼 스콘" },
+{ time: "18:00 ~ 21:00", act: "츠와슨 복귀 및 석양 감상", desc: "이너 하버에서 다시 70번 버스 탑승 ➔ 스왈츠 베이 터미널 ➔ 19:00 페리 탑승 ➔ 츠와슨 도착 후 620번 버스 ➔ 리치먼드 숙소 복귀", photo: "📍 페리 갑판 선셋: 바다 너머 저무는 평화롭고 붉은 노을 풍경 촬영", food: "🍽️ 복귀 후 리치먼드 야식 - 알렉산드라 로드 명물 테이크아웃" }
+]
+},
+{
+id: 5,
+dateShort: "6/4",
+dateFull: "6월 4일 (목요일)",
+title: "노스밴쿠버 웅장한 숲 하이킹 & 뜨거운 야간 배구",
+hub: "📍 리치먼드 숙소",
+activityCount: 7,
+schedule: [
+{ time: "09:00 ~ 11:30", act: "캐필라노 현수교 (Capilano Suspension Bridge)", desc: "Canada Line 탑승 ➔ Waterfront 역 ➔ 하얏트 리젠시 호텔 앞 무료 셔틀버스 탑승하여 현수교 도착. 공중 보행로 산책 진행.", photo: "📍 캐필라노 현수교 중앙: 원시림 계곡을 등지고 찍는 시그니처 샷\n📍 클리프워크 (Cliffwalk): 화강암 절벽을 따라 고정된 반원형 유리 교각 스팟", food: "" },
+{ time: "11:30 ~ 14:30", act: "딥 코브 (Deep Cove) 하이킹", desc: "환승 대기와 동선 낭비를 줄이기 위해 캐필라노 현수교 정문에서 딥코브 구간은 우버(Uber) 이용 추천. 쿼리 락 가벼운 하이킹(왕복 1시간).", photo: "📍 쿼리 락 정상 바위: 거대 자연 바위 끝에 걸터앉아 고요하고 푸른 딥코브 전경을 내려다보는 인생 샷", food: "😋 Honey Doughnuts & Cafe - 설탕 시나몬 듬뿍 바른 겉바속촉 밴쿠버 1티어 꿀도넛 수확" },
+{ time: "14:30 ~ 16:30", act: "론스데일 퀘이 & 십야드 지구", desc: "딥코브에서 211번/212번 버스 또는 우버 탑승하여 론스데일 퀘이 버스 루프 하차. 다운타운 빌딩 숲 스카이라인 감상.", photo: "📍 십야드 부두 데크 (Shipyards Pier): 바다 향해 곧게 뻗은 선착장 끝\n🛍 론스데일 퀘이 마켓: 로컬 소품 숍 탐방", food: "😋 Earnest Ice Cream - 유기농 수제 솔티드 캐러멜 아이스크림\n😋 Nemesis Coffee - 은색 기하학 돔 형태 핫플 카페" },
+{ time: "16:30 ~ 17:30", act: "리치먼드 숙소 귀환", desc: "론스데일 퀘이 터미널에서 씨버스(SeaBus) 탑승 ➔ Waterfront 역 ➔ Canada Line 환승 ➔ 숙소 복귀 및 장비 챙기기", photo: "📍 씨버스 창가: 물 위를 건너며 한눈에 들어오는 도심 마천루 비디오 촬영", food: "" },
+{ time: "17:30 ~ 18:30", act: "숙소 정비 및 샤워", desc: "하이킹으로 흘린 땀을 씻어내고 운동복 및 관절 보호대 정비 타임", photo: "", food: "" },
+{ time: "18:30 ~ 20:15", act: "이동 및 든든한 저녁 식사", desc: "Lansdowne 역 ➔ Olympic Village 역 하차 (단 12분 소요) 후 도보 이동하여 크릭사이드 센터 옆 디너 맛집에서 든든하게 벌크업", photo: "", food: "🍽️ Craft Beer Market - 100가지 탭 맥주와 치킨 버거, 맥앤치즈, 버팔로 윙 명소\n🍽️ Tap & Barrel - 드넓은 패티오 테라스에서 비프 버거와 스테이크 다이닝\n🍽️ Gusto A Taste of Italy - 속 부대끼지 않는 캐주얼 화덕 피자와 홈메이드 파스타" },
+{ time: "20:15 ~ 22:15", act: "🏐 크릭사이드 커뮤니티 센터 실내 배구", desc: "크릭사이드 커뮤니티 센터 2층 다목적 대형 체육관 사전 예약 세션 참여하여 로컬들과 배구 매치 진행", photo: "📍 크릭사이드 체육관 실내: 전면 통유리 너머로 밴쿠버 False Creek 야경이 내려다보이는 황홀한 뷰", food: "😋 운동 후 보충식 - 리치먼드 복귀 후 알렉산드라 로드 야식 부스 털기" }
+]
+},
+{
+id: 6,
+dateShort: "6/5",
+dateFull: "6월 5일 (금요일)",
+title: "휘슬러 빌리지 & 익스트림 짚라인 당일치기",
+hub: "📍 리치먼드 숙소",
+activityCount: 5,
+schedule: [
+{ time: "07:00 ~ 07:45", act: "리치먼드 ➔ 다운타운 셔틀 승강장 이동", desc: "Lansdowne 역 ➔ Vancouver City Centre 역 하차 후 Melville St 'Epic Rides' 정류장 도보 이동", photo: "", food: "☕ 팀홀튼 브랙퍼스트 에그 랩과 커피" },
+{ time: "08:00 ~ 10:00", act: "셔틀 탑승 및 휘슬러 이동", desc: "Epic Rides 셔틀버스 탑승하여 세계에서 가장 아름다운 절벽 바닷길 Sea-to-Sky Highway 감상하며 이동", photo: "📍 Sea-to-Sky 창가: 드넓은 피오르 바다와 화강암 절벽 만년설 숲", food: "" },
+{ time: "10:00 ~ 12:30", act: "휘슬러 빌리지 (Whistler Village) 탐방", desc: "보행자 전용 스키 빌리지 도보 구경 및 고가 아웃도어 의류 할인점 기념품 쇼핑", photo: "📍 휘슬러 오륜기 광장 (Olympic Plaza): 동계올림픽 공식 오륜기 조각상 앞 시그니처 점프 샷\n🛍️ 아크테릭스(Arc'teryx) 플래그십, 파타고니아, 캐나다 구스 매장", food: "🍽️ Crepe Montagne - 20년 역사 프랑스 전통 크레페와 프렌치토스트\n🍽️ Peaked Pies - 호주식 수제 미트파이 위에 으깬 감자, 그레이비 소스를 3단으로 쌓아 올린 명물" },
+{ time: "12:45 ~ 15:30", act: "하늘을 나는 짚라인 액티비티 (Ziptrek)", desc: "곤돌라 승강장 옆 Ziptrek Ecotours 접수 (사전 예약). 북미 최장 길이(2km) 최고 높이 '사스콰치' 코스 또는 5개 이글 투어 탑승.", photo: "📍 짚라인 활강 도중: 만년설 숲과 흔들다리 절경 액션 샷", food: "" },
+{ time: "15:30 ~ 17:30", act: "로스트 레이크 (Lost Lake) 숲길 산책", desc: "오륜기 광장 뒤편 Valley Trail을 따라 한적하고 평평한 계곡 숲길 도보 산책 (도보 20분)", photo: "📍 로스트 레이크 목조 데크: 숲이 거울처럼 조용히 물 위에 투영되는 수평선 포토존", food: "😋 COW'S Whistler - 메이플 호두 명품 수제 아이스크림 콘" },
+{ time: "17:30 ~ 20:00", act: "셔틀 탑승 및 다운타운 복귀", desc: "게이트웨이 루프 승강장 ➔ 18:00 출발 Epic Rides 탑승하여 다운타운 복귀", photo: "📍 드라이브 노을 뷰: 하이웨이를 내려가며 물드는 서부의 붉은 석양", food: "" },
+{ time: "20:00 ~", act: "다운타운 저녁 및 숙소 귀환", desc: "다운타운 하차 후 저녁 식사를 즐긴 뒤 Canada Line 탑승하여 리치먼드 복귀", photo: "", food: "🍽️ Cardero's - 바다 위에 떠 있는 수상 펍. 그릴드 연어 구이\n🍽️ Guu with Garlic - 가라아게, 수제 야키소바와 하이볼 이자카야\n🍽️ 마루타마 라멘 랍슨점 - 뜨끈하고 진한 토리파이탄 차슈 라멘" }
+]
+},
+{
+id: 7,
+dateShort: "6/6",
+dateFull: "6월 6일 (토요일)",
+title: "자유정비 및 선택형 힐링 데이",
+hub: "📍 리치먼드 숙소",
+activityCount: 2,
+schedule: [
+{ time: "늦은 오전", act: "늦잠 및 리치먼드 동네 마실", desc: "빨래 및 여행 후반 체력 정비. 주택가 산책과 드러그 스토어 털기", photo: "🛍️ Garden City Shopping Centre: 현지 과자, 기념 엽서 소품 쇼핑", food: "🍽️ 알렉산드라 로드 (Alexandra Road): 밴쿠버 No.1 먹자골목 내 대만식 브런치 및 밀크티" },
+{ time: "14:00 ~ 17:00", act: "[선택 옵션] 가든 시티 커뮤니티 파크 산책", desc: "숙소에서 남쪽 도보 10분 거리. 수목원과 드넓은 인공 호수, 오리 습지가 펼쳐진 조용한 힐링 숲", photo: "📍 가든 시티 호숫가 데크: 오리가 헤엄치는 반짝이는 호수 배경", food: "☕ 근처 대만 티 샵에서 향긋한 흑당 버블티 포장" },
+{ time: "18:00 ~ 21:00", act: "[선택 옵션] 리치먼드 나이트 마켓", desc: "금토일에만 열리는 북미 최대 규모 아시안 야시장 축제 방문. 숙소와 아주 인접하여 가벼운 복장 이동 가능 (캐나다 현금 지참 필수)", photo: "📍 야시장 입구 네온사인 포토존", food: "😋 야시장 3대 길거리 먹거리: 1. 회오리 감자 / 2. 직화 양꼬치 구이 / 3. 시원하고 쫀득한 망고 사고(Sago) 디저트" }
+]
+},
+{
+id: 8,
+dateShort: "6/7",
+dateFull: "6월 7일 (일요일)",
+title: "마지막 면세 쇼핑 및 귀국",
+hub: "✈️ YVR 공항",
+activityCount: 4,
+schedule: [
+{ time: "10:00 ~ 10:30", act: "체크아웃 및 캐리어 짐 보관", desc: "숙소 체크아웃 후 짐을 챙겨 Templeton 역 하차. 맥아더글렌 아웃렛 고객센터에 짐 보관.", photo: "", food: "" },
+{ time: "10:30 ~ 14:00", act: "맥아더글렌 디자이너 아웃렛", desc: "공항 직전 템플턴 역에 인접한 야외식 명품 쇼핑 타운. (★템플턴역-공항역 구간 전철 이용 완전 무료 혜택)", photo: "🛍️ 아크테릭스(Arc'teryx) 아웃렛: 면세급 고어텍스 재킷 득템\n🛍️ 룰루레몬(Lululemon) 아웃렛: 특화 반바지 및 운동용 조거 득템", food: "🍽️ Ryuu Japanese Kitchen - 아웃렛 내 정갈하고 시원한 우동과 차슈 덮밥 일식" },
+{ time: "14:00 ~ 14:30", act: "공항(YVR) 이동", desc: "아웃렛에서 짐을 찾아 템플턴 역에서 무료 전철 탑승하여 공항역 하차 (단 10분 소요)", photo: "", food: "" },
+{ time: "14:30 ~ 17:00", act: "출국 심사 및 귀국 탑승 대기", desc: "위탁 수하물 부치기 및 출국 체크인 완료 후 탑승구 대기", photo: "", food: "☕ 공항 면세 구역 내 팀홀튼 - 마지막 아이스캡(Iced Capp) 콘 한 잔" },
+{ time: "17:00 ~", act: "인천 공항 향해 출발 ✈️", desc: "대자연과 열정적인 스포츠로 채운 10박 11일 전체 마스터 여정 무사히 클리어", photo: "", food: "" }
+]
+}
+];
+
+const daySummaries = {
+    1: `
+        <div class="space-y-3">
+            <p>🏃‍♂️ <strong>첫날 피로 관리 페이스:</strong> 공항 도착 직후 무리한 도보 이동을 자제하고 숙소 인근 마트에서 간식을 보충한 뒤, 밴쿠버 다운타운 핵심 야경 스팟만 가볍게 복용하는 동선입니다.</p>
+            <p>🛍️ <strong>허셜 19:00 마감 엄수:</strong> 개스타운의 허셜 플래그십 스토어는 저녁 7시 정각에 문을 닫습니다. 도착 즉시 가방 쇼핑을 먼저 해결한 뒤, 늦게 해가 지는 증기시계와 야경을 구경하는 순서로 움직이셔야 물건을 놓치지 않습니다.</p>
+        </div>
+    `,
+    2: `
+        <div class="space-y-3">
+            <p>🚲 <strong>액티브 시월(Seawall) 바이킹:</strong> 오전 스탠리 공원부터 잉글리시 베이, 그랜빌 아일랜드까지 해안선을 따라 물 흐르듯 전개되는 밴쿠버 아웃도어의 전형을 만끽하는 여정입니다.</p>
+            <p>🥞 <strong>잼 카페(Jam Cafe) 마감 요령:</strong> 킷실라노 West 4th의 잼 카페는 <strong>오후 3시 정각에 영업을 종료</strong>합니다. 그랜빌 아일랜드 마켓 일정을 14:30 이전에 매끄럽게 종료하고, 늦은 점심으로 먼저 식사하신 뒤 킷실라노 해변과 쇼핑가를 걷는 동선이 완벽합니다.</p>
+        </div>
+    `,
+    3: `
+        <div class="space-y-3">
+            <p>🏔️ <strong>경이로운 웅장함, 로키 투어:</strong> 요호 국립공원부터 레이크 루이스, 모레인 호수 및 아사바스카 빙하 설상차를 정복하는 3박 4일 핵심 기간입니다.</p>
+            <p>🏡 <strong>리치먼드 제2거점 입성:</strong> 로키에서 다운타운으로 귀환하자마자 전철을 타고 리치먼드 숙소로 바로 입성합니다. 밤늦은 귀환이므로 숙소 근처에 평점이 가장 높은 홍콩 바비큐 테이크아웃이나 라멘 맛집이 배치되어 있습니다.</p>
+        </div>
+    `,
+    4: `
+        <div class="space-y-3">
+            <p>🚢 <strong>당일치기 빅토리아 영국식 힐링:</strong> 이너하버 항구 주위로 모든 랜드마크가 걸어서 15분 내에 위치해 있어 체력 소모가 비교적 적고 평화로운 도보 투어입니다.</p>
+            <p>💳 <strong>교통카드 걱정 제로:</strong> 빅토리아 시내버스는 전용 교통카드 없이 소지하신 신용카드나 Apple Pay 터치 결제를 2번만 하면 <strong>자동으로 하루 무제한 데이패스 요금 상한선($5.00)</strong>이 씌워지는 첨단 기술이 적용되어 있습니다.</p>
+        </div>
+    `,
+    5: `
+        <div class="space-y-3">
+            <p>🌲 <strong>산악 고지대 이동 낭비 완전 배제:</strong> 불필요하게 높은 그라우스 산을 배제하고, 버스가 완벽히 연결되는 <strong>캐필라노 ➔ 딥코브 ➔ 십야드</strong> 평화로운 워터프론트 평지 동선으로 대폭 최적화되었습니다.</p>
+            <p>🏐 <strong>숙소 정비 후 목요 배구:</strong> 16:30에 론스데일에서 시버스를 타고 쾌속으로 다운타운을 건너 숙소로 이동합니다. 개운하게 씻은 뒤 20:15 시작되는 올림픽 빌리지 크릭사이드 센터 실내 배구로 가뿐하게 전진하세요.</p>
+        </div>
+    `,
+    6: `
+        <div class="space-y-3">
+            <p>🚠 <strong>대기 시간 낭비 제로 휘슬러:</strong> 비싸고 대기 줄이 긴 곤돌라를 배제하는 대신, 아기자기한 빌리지 구역 쇼핑과 호수 숲길 트레일 산책, 그리고 하늘을 시속 100km로 날아가는 익스트림 짚라인을 배치해 알짜 스릴을 완성했습니다.</p>
+            <p>🚌 <strong>에픽 라이드 셔틀:</strong> 08:00 정각에 밴쿠버 다운타운 버나드역 인근에서 출발하므로 늦지 않게 대중교통으로 먼저 진출해야 합니다.</p>
+        </div>
+    `,
+    7: `
+        <div class="space-y-3">
+            <p>🛌 <strong>가장 달콤한 토요 자유 정비:</strong> 로키, 빅토리아, 휘슬러를 가차 없이 정복하며 쌓인 여독을 슬리퍼 하나 신고 치유하는 힐링 데이입니다.</p>
+            <p>🍢 <strong>리치먼드 야시장 정복:</strong> 숙소에서 우버나 대중교통으로 5분 거리에서 밤에만 펼쳐지는 북미 최대 나이트 마켓입니다. 맛있는 길거리 꼬치구이와 시원한 디저트로 마지막 밤의 화려한 피날레를 기념해 보세요.</p>
+        </div>
+    `,
+    8: `
+        <div class="space-y-3">
+            <p>✈️ <strong>귀국 비행기 탑승 전 득템 찬스:</strong> 아웃렛이 위치한 템플턴역은 공항 직전 2정거장 전철 요금이 100% 무료인 특수 면세 구역 혜택이 적용됩니다.</p>
+            <p>🧥 <strong>캐리어 프리 아크테릭스 쇼핑:</strong> 아웃렛 고객센터에 짐을 안전하게 무료 보관하고, 본고장 캐나다 최고의 프리미엄 기능성 의류(아크테릭스, 룰루레몬)를 면세급으로 털어갈 수 있는 영리한 마지막 날 동선입니다.</p>
+        </div>
+    `
+};
+
+function initApp() {
+    renderChart();
+    renderDaySelectors();
+    selectDay(1); 
+}
+
+function renderChart() {
+    const ctx = document.getElementById('pacingChart').getContext('2d');
+    const labels = itineraryData.map(day => day.dateShort);
+    const data = itineraryData.map(day => day.activityCount);
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: '일일 주요 활동 수',
+                data: data,
+                backgroundColor: '#10b981',
+                borderRadius: 6,
+                borderWidth: 0,
+                hoverBackgroundColor: '#059669'
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#292524',
+                    titleFont: { family: 'Noto Sans KR', size: 14 },
+                    bodyFont: { family: 'Noto Sans KR', size: 13 },
+                    padding: 12,
+                    callbacks: {
+                        label: function(context) {
+                            return `활동 수: ${context.raw}개`;
+                        }
                     }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#f5f5f4' },
+                    ticks: { stepSize: 1, color: '#a8a29e' }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#78716c', font: { family: 'Noto Sans KR' } }
                 }
             }
         }
-    </script>
-    <style>
-        body { background-color: #020617; color: #f1f5f9; margin: 0; padding: 15px; overflow-x: hidden; }
-        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
-        .fade-in-up { animation: fadeInUp 0.5s ease-out forwards; opacity: 0; transform: translateY(15px); }
-        .delay-100 { animation-delay: 100ms; }
-        .glow-card { transition: all 0.3s ease; border: 1px solid #1e293b; }
-        .glow-card:hover { transform: translateY(-5px); box-shadow: 0 0 25px rgba(14, 165, 233, 0.2); border-color: #0ea5e9; }
-        @keyframes statusPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
-        .animate-status-live { animation: statusPulse 1.8s infinite; }
-    </style>
-</head>
-<body>
-    <div class="max-w-7xl mx-auto space-y-6">
-        <header class="flex flex-col md:flex-row justify-between items-start md:items-center pb-5 border-b border-dark-700 fade-in-up">
-            <div class="flex items-center space-x-4">
-                <div class="w-12 h-12 bg-neon-blue rounded-xl flex items-center justify-center font-black text-xl text-dark-950">KGC</div>
-                <div>
-                    <h1 class="text-3xl font-extrabold text-white"><span class="text-neon-blue">AI</span> 설비 예지보전 실시간 모니터링</h1>
-                    <p class="text-dark-500 font-medium text-sm">NASA Turbofan Engine Degradation Analysis (FD001)</p>
-                </div>
-            </div>
-            <div class="mt-4 md:mt-0 text-right bg-dark-900 p-4 rounded-xl border border-dark-700">
-                <div class="inline-flex items-center px-2 py-0.5 bg-neon-green/10 text-neon-green text-xs font-bold rounded">
-                    <span class="w-1.5 h-1.5 bg-neon-green rounded-full mr-1.5 animate-status-live"></span> ML 엔진 실시간 분석중
-                </div>
-                <p class="text-sm font-bold text-dark-300 mt-1">분석 유닛: <span class="text-white">100 Units</span></p>
-            </div>
-        </header>
+    });
+}
 
-        <!-- 상단 요약 카드 섹션 -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="glow-card bg-dark-900 p-5 rounded-2xl fade-in-up delay-100">
-                <h3 class="text-dark-400 font-bold text-xs uppercase mb-1">평균 예측 RUL</h3>
-                <div class="text-4xl font-black text-neon-blue tracking-tighter">{{avg_rul}}<span class="text-lg text-dark-400 ml-1"> cycles</span></div>
-            </div>
-            <div class="glow-card bg-dark-900 p-5 rounded-2xl fade-in-up">
-                <h3 class="text-dark-400 font-bold text-xs uppercase mb-1">시스템 건전도</h3>
-                <div class="text-4xl font-black text-neon-green tracking-tighter">{{health_score}}<span class="text-lg text-dark-400 ml-1">%</span></div>
-                <div class="mt-3 w-full bg-dark-700 h-1.5 rounded-full overflow-hidden">
-                    <div class="bg-neon-green h-full" style="width: {{health_score}}%"></div>
-                </div>
-            </div>
-            <div class="glow-card bg-dark-900 p-5 rounded-2xl fade-in-up border-l-4 border-l-neon-amber">
-                <h3 class="text-dark-400 font-bold text-xs uppercase mb-1">주의 단계 설비</h3>
-                <div class="text-4xl font-black text-neon-amber tracking-tighter">{{caution_count}}</div>
-            </div>
-            <div class="glow-card bg-dark-900 p-5 rounded-2xl fade-in-up border-l-4 border-l-neon-red shadow-lg shadow-neon-red/10">
-                <h3 class="text-dark-400 font-bold text-xs uppercase mb-1">위험 단계 설비</h3>
-                <div class="text-4xl font-black text-neon-red tracking-tighter animate-pulse">{{danger_count}}</div>
-            </div>
-        </div>
+function renderDaySelectors() {
+    const container = document.getElementById('daySelector');
+    itineraryData.forEach(day => {
+        const btn = document.createElement('button');
+        btn.className = `flex-none px-5 py-3 rounded-xl text-sm font-bold transition-all duration-200 border-2 snap-center focus:outline-none day-btn`;
+        btn.id = `btn-day-${day.id}`;
+        btn.innerText = `${day.dateShort}`;
+        btn.onclick = () => selectDay(day.id);
+        container.appendChild(btn);
+    });
+}
 
-        <!-- 메인 콘텐츠 섹션 -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- 알림 스트림 섹션 -->
-            <div class="lg:col-span-2 bg-dark-900 p-6 rounded-2xl border border-dark-700">
-                <h2 class="text-xl font-extrabold text-white mb-6 flex items-center">
-                    <span class="mr-3 text-neon-blue">📡</span> 머신러닝 이상 징후 실시간 감지
-                </h2>
-                <div class="max-h-[500px] overflow-y-auto pr-2">
-                    {{alert_items}}
-                </div>
-            </div>
+function selectDay(id) {
+    document.querySelectorAll('.day-btn').forEach(btn => {
+        btn.classList.remove('bg-emerald-600', 'text-white', 'border-emerald-600', 'shadow-md');
+        btn.classList.add('bg-stone-50', 'text-stone-500', 'border-transparent', 'hover:bg-stone-100');
+    });
 
-            <!-- 차트 섹션 -->
-            <div class="bg-dark-900 p-6 rounded-2xl border border-dark-700 flex flex-col items-center">
-                <h2 class="text-lg font-black text-white mb-6 w-full text-left">상태 분포도</h2>
-                <div class="w-full h-48 relative">
-                    <canvas id="healthChart"></canvas>
-                    <div class="absolute inset-0 flex flex-col items-center justify-center pt-2">
-                        <div class="text-4xl font-black text-white tracking-tighter">100</div>
-                        <div class="text-[10px] text-dark-400 font-bold uppercase">Total Units</div>
+    const selectedBtn = document.getElementById(`btn-day-${id}`);
+    selectedBtn.classList.remove('bg-stone-50', 'text-stone-500', 'border-transparent', 'hover:bg-stone-100');
+    selectedBtn.classList.add('bg-emerald-600', 'text-white', 'border-emerald-600', 'shadow-md');
+    
+    selectedBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+
+    const dayData = itineraryData.find(d => d.id === id);
+    if(dayData) {
+        document.getElementById('currentTitle').innerText = dayData.title;
+        document.getElementById('currentHub').innerHTML = `<span>🏡</span> 거점: ${dayData.hub}`;
+        
+        renderTimeline(dayData.schedule);
+        
+        // Render dynamic summary and advices on the right panel
+        const summaryPanel = document.getElementById('daySummary');
+        summaryPanel.innerHTML = daySummaries[dayData.id] || '<p class="text-stone-400 italic">추가적인 요약 정보가 존재하지 않습니다.</p>';
+    }
+}
+
+function renderTimeline(schedule) {
+    const container = document.getElementById('timelineContainer');
+    container.innerHTML = '';
+
+    schedule.forEach(item => {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'relative bg-white rounded-2xl p-5 md:p-6 border border-stone-200 shadow-sm hover:shadow-md transition-all duration-200';
+        
+        // Aesthetic step node dot on the left line
+        const dot = document.createElement('div');
+        dot.className = 'absolute -left-[41px] top-7 w-5 h-5 rounded-full bg-emerald-600 border-4 border-white shadow-sm';
+        itemEl.appendChild(dot);
+
+        // Core metadata
+        let itemContentHTML = `
+            <div class="flex items-center gap-2 mb-2">
+                <span class="px-2.5 py-1 bg-stone-100 text-stone-600 rounded-full text-xs font-bold tracking-wide">${item.time}</span>
+            </div>
+            <h5 class="text-lg font-black text-stone-800 mb-2">${item.act}</h5>
+            <p class="text-sm text-stone-500 leading-relaxed mb-1">${item.desc}</p>
+        `;
+
+        // Check and render photo zones directly under this schedule block
+        if (item.photo && item.photo.trim() !== "" && item.photo.trim() !== "-") {
+            const photos = item.photo.split('\n').map(p => p.trim()).filter(p => p);
+            itemContentHTML += `
+                <div class="mt-4 bg-emerald-50/60 rounded-xl p-4 border border-emerald-100/80">
+                    <span class="text-xs font-bold text-emerald-800 flex items-center gap-1.5 mb-2">
+                        📸 추천 포토존 & 쇼핑 스팟
+                    </span>
+                    <div class="space-y-1.5">
+                        ${photos.map(p => `<p class="text-xs md:text-sm text-stone-700 font-medium">${p}</p>`).join('')}
                     </div>
                 </div>
-                <div class="mt-8 w-full space-y-2">
-                    <div class="flex justify-between text-xs font-bold bg-dark-800 p-3 rounded-xl text-neon-green">
-                        <span>정상 (RUL > 100)</span> <span>{{normal_pct}}%</span>
-                    </div>
-                    <div class="flex justify-between text-xs font-bold bg-dark-800 p-3 rounded-xl text-neon-amber">
-                        <span>주의 (50-100)</span> <span>{{caution_pct}}%</span>
-                    </div>
-                    <div class="flex justify-between text-xs font-bold bg-dark-800 p-3 rounded-xl text-neon-red">
-                        <span>위험 (< 50)</span> <span>{{danger_pct}}%</span>
+            `;
+        }
+
+        // Check and render food under this schedule block
+        if (item.food && item.food.trim() !== "" && item.food.trim() !== "-") {
+            const foods = item.food.split('\n').map(f => f.trim()).filter(f => f);
+            itemContentHTML += `
+                <div class="mt-3 bg-orange-50/60 rounded-xl p-4 border border-orange-100/80">
+                    <span class="text-xs font-bold text-orange-800 flex items-center gap-1.5 mb-2">
+                        🍽️ 추천 맛집 및 미식 정보
+                    </span>
+                    <div class="space-y-1.5">
+                        ${foods.map(f => `<p class="text-xs md:text-sm text-stone-700 font-medium">${f}</p>`).join('')}
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
+            `;
+        }
 
-    <script>
-        const ctx = document.getElementById('healthChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['정상', '주의', '위험'],
-                datasets: [{
-                    data: [{{normal_pct}}, {{caution_pct}}, {{danger_pct}}],
-                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
-                    borderWidth: 0,
-                    cutout: '80%'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } }
-            }
-        });
-    </script>
+        itemEl.innerHTML += itemContentHTML;
+        container.appendChild(itemEl);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', initApp);
+</script>
 </body>
 </html>
